@@ -348,7 +348,7 @@ elif st.session_state['active_section'] == 'child_login':
 
         with st.form("login_form"):
             st.subheader("1️⃣ Optional Lookup Details")
-            login_primary_name = st.text_input("Primary Caregiver's Full Name (Optional):", placeholder="e.g., Ayesha Begum")
+            login_primary_name = st.text_input("Secondary Caregiver's Full Name (Optional):", placeholder="e.g., Ayesha Begum")
             login_primary_phone = st.text_input("Mobile Number (Optional):", "+880")
             
             st.markdown("---")
