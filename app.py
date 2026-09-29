@@ -104,7 +104,7 @@ if "registered_profiles" not in st.session_state:
             "primary_name": "Ayesha Begum",
             "primary_phone": "+8801711223344",
             "address": "Korail Slum, Sector 7, House 12",
-            "children_names": ["Rahim", "Fatima"],
+            "children_names": ["Rahim Karim", "Fatima"],
             "security_question": "Favourite fruit",
             "security_answer": "Mango",
             "secondary_name": "Rahim Uddin",
@@ -348,7 +348,7 @@ elif st.session_state['active_section'] == 'child_login':
 
         with st.form("login_form"):
             st.subheader("1️⃣ Optional Lookup Details")
-            login_primary_name = st.text_input("Secondary Caregiver's Full Name (Optional):", placeholder="e.g., Ayesha Begum")
+            login_primary_name = st.text_input("Primary Caregiver's Full Name (Optional):", placeholder="e.g., Ayesha Begum")
             login_primary_phone = st.text_input("Mobile Number (Optional):", "+880")
             
             st.markdown("---")
@@ -379,7 +379,7 @@ elif st.session_state['active_section'] == 'child_login':
                     "address": matched_profile.get("address", "Korail Slum, Dhaka"),
                     "secondary_name": matched_profile.get("secondary_name", "Rahim Uddin"),
                     "secondary_phone": matched_profile.get("secondary_phone", "+8801800000000"),
-                    "children_names": matched_profile.get("children_names", ["Rahim", "Fatima"]),
+                    "children_names": matched_profile.get("children_names", ["Rahim Karim", "Fatima"]),
                     "filepath": matched_profile.get("filepath", filepath)
                 }
                 st.session_state['logged_in'] = True
@@ -414,7 +414,7 @@ elif st.session_state['active_section'] == 'admin_login':
 
         # Sample data with all children situated in Korail Slum
         risk_data = {
-            "Child_Name": ["Tanvir Ahmed", "Mim Akter", "Puja Rani", "Arman Khan", "Rifat Hossain", "Sadia Islam"],
+            "Child_Name": ["Rahim Karim", "Mim Akter", "Puja Rani", "Arman Khan", "Rifat Hossain", "Sadia Islam"],
             "Slum_Zone": ["Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum"],
             "Overdue_Days": [60, 45, 50, 30, 12, 5],
             "Missed_Sessions": [4, 3, 3, 2, 1, 0],
@@ -476,9 +476,31 @@ elif st.session_state['active_section'] == 'admin_login':
         for idx, prof in enumerate(st.session_state["registered_profiles"], 1):
             with st.expander(f"Profile {idx}: {prof.get('primary_name')} ({prof.get('primary_phone')})"):
                 st.write(f"**Residential Address:** {prof.get('address')}")
-                st.write(f"**Children:** {', '.join(prof.get('children_names', []))}")
                 st.write(f"**Backup Contact:** {prof.get('secondary_name')} ({prof.get('secondary_phone')})")
                 st.write(f"**Security Q/A:** {prof.get('security_question')} -> {prof.get('security_answer')}")
+                
+                st.markdown("##### 👶 Children Immunization Status:")
+                children_list = prof.get('children_names', [])
+                for c_idx, child_name in enumerate(children_list, 1):
+                    # Mock specific progress for Rahim Karim, default values for others
+                    if "rahim karim" in child_name.lower() or "rahim" in child_name.lower():
+                        doses_taken_list = ["BCG (At Birth)", "Pentavalent 1 (6 Wks)", "PCV 1 (6 Wks)"]
+                        doses_left_list = ["Pentavalent 2 (10 Wks)", "Pentavalent 3 (14 Wks)", "PCV 2 (10 Wks)", "PCV 3 (14 Wks)", "OPV & IPV Doses", "MR Dose 1 (9 Months)", "MR Dose 2 (15 Months)"]
+                    else:
+                        doses_taken_list = ["BCG (At Birth)"]
+                        doses_left_list = ["Pentavalent 1, 2, 3", "PCV 1, 2, 3", "OPV & IPV Doses", "MR Dose 1 & 2"]
+
+                    st.markdown(f"**{c_idx}. {child_name}**")
+                    col_dt, col_dl = st.columns(2)
+                    with col_dt:
+                        st.markdown(f"✅ **Doses Taken ({len(d_taken := doses_taken_list)}):**")
+                        for d in d_taken:
+                            st.markdown(f"- {d}")
+                    with col_dl:
+                        st.markdown(f"⏳ **Doses Left to Take ({len(d_left := doses_left_list)}):**")
+                        for d in d_left:
+                            st.markdown(f"- {d}")
+                    st.markdown("---")
                 
         st.write("")
         if st.button("🚪 Admin Log Out"):
