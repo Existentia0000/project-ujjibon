@@ -6,6 +6,7 @@ import math
 from PIL import Image
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+import streamlit.components.v1 as components
 
 # Set page configuration to fit standard screens
 st.set_page_config(
@@ -15,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Auto-refresh the app every 5 seconds (5000 milliseconds) to check network state in real time
+# Auto-refresh the app every 5 seconds to check synchronization state
 st_autorefresh(interval=5000, key="net_sync_refresh")
 
 # Custom CSS for Clean White Theme & White Gumroad-Styled Buttons with Black Borders/Shadows
@@ -83,7 +84,7 @@ st.markdown("""
 OFFLINE_PHOTO_DIR = "offline_captured_photos"
 os.makedirs(OFFLINE_PHOTO_DIR, exist_ok=True)
 
-# Function to automatically detect active internet / Wi-Fi connection
+# Function to check server-side connection
 def check_internet_connection(host="8.8.8.8", port=53, timeout=2):
     try:
         socket.setdefaulttimeout(timeout)
@@ -113,7 +114,6 @@ if "registered_profiles" not in st.session_state:
         }
     ]
 
-# Manage dynamic number of child registration input boxes
 if "reg_num_children" not in st.session_state:
     st.session_state["reg_num_children"] = 1
 
@@ -129,7 +129,7 @@ if "admin_logged_in" not in st.session_state:
 if "current_user_profile" not in st.session_state:
     st.session_state["current_user_profile"] = {}
 
-# BACKGROUND SYNC TRIGGER: If we just came back online and have unsynced items in queue
+# BACKGROUND SYNC TRIGGER
 if is_online and len(st.session_state["local_field_queue"]) > 0:
     queued_count = len(st.session_state["local_field_queue"])
     st.session_state["local_field_queue"].clear()
@@ -141,15 +141,35 @@ elif not is_online:
 st.markdown("<h1 style='text-align: center; color: #000000;'>Project Ujjibon</h1>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Decentralized Offline-First Immunization Tracking System</div>", unsafe_allow_html=True)
 
+# --- BROWSER-SIDE LIVE NETWORK STATUS LISTENER (HTML/JS) ---
+# This widget detects browser online/offline status instantly without losing server connection page view
+network_status_html = """
+<div id="net-banner" style="padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;">
+    Checking network status...
+</div>
+<script>
+const banner = document.getElementById('net-banner');
+function updateStatus() {
+    if (navigator.onLine) {
+        banner.style.backgroundColor = "#e2f0cb";
+        banner.style.color = "#2d5016";
+        banner.innerHTML = "🟢 Network Status: Connected (Online Mode)";
+    } else {
+        banner.style.backgroundColor = "#f8d7da";
+        banner.style.color = "#721c24";
+        banner.innerHTML = "🔴 Status Update: Offline (Offline-First Field Mode Active)";
+    }
+}
+window.addEventListener('online', updateStatus);
+window.addEventListener('offline', updateStatus);
+updateStatus();
+</script>
+"""
+components.html(network_status_html, height=45)
+
 # Display active auto-sync notification if it just triggered
 if st.session_state["sync_status_message"]:
     st.markdown(f"<div style='background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; text-align: center; font-weight: 700; margin-bottom: 15px;'>{st.session_state['sync_status_message']}</div>", unsafe_allow_html=True)
-
-# Live Network Indicator Status Banner
-if is_online:
-    st.markdown("<div style='background-color: #e2f0cb; color: #2d5016; padding: 6px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;'>🟢 Network Status: Connected (Online Mode)</div>", unsafe_allow_html=True)
-else:
-    st.markdown("<div style='background-color: #f8d7da; color: #721c24; padding: 6px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;'>🔴 Network Status: No Wi-Fi Detected (Offline Mode Active)</div>", unsafe_allow_html=True)
 
 # Display the Ujjibon Torch Logo Perfectly Centered
 col1, col2, col3 = st.columns([1.5, 1, 1.5])
@@ -216,7 +236,6 @@ if st.session_state['active_section'] == 'register':
         st.markdown("---")
         st.markdown("**👶 Children Names:**")
         
-        # Dynamic child input fields loop
         child_inputs = []
         for i in range(st.session_state["reg_num_children"]):
             c_val = st.text_input(f"Child {i+1} Full Name:", placeholder=f"e.g., Child {i+1} Name", key=f"child_input_{i}")
@@ -238,7 +257,6 @@ if st.session_state['active_section'] == 'register':
         st.markdown("---")
         submitted = st.form_submit_button("💾 Register & Create Profile")
 
-    # Add Child button outside form to handle dynamic re-renders smoothly
     if st.button("➕ Add Another Child Box"):
         st.session_state["reg_num_children"] += 1
         st.rerun()
@@ -393,7 +411,6 @@ elif st.session_state['active_section'] == 'admin_login':
         st.subheader("🛡️ Health Worker / Admin Dashboard")
         st.markdown("Welcome back, **Raik**! Here is the overview of decentralized immunization nodes, local queues, and AI risk analysis.")
         
-        # Dashboard metrics
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
             st.metric("Total Registered Profiles", len(st.session_state["registered_profiles"]))
@@ -404,7 +421,6 @@ elif st.session_state['active_section'] == 'admin_login':
             
         st.markdown("---")
         
-        # Integrated Dropout Risk Calculation Dashboard
         st.title("📊 Orjon: A Probabilistic AI")
         st.markdown("Calculates dropout risk using core factors: **Confirmed visits and High risk queues**.")
         st.markdown("---")
@@ -412,7 +428,6 @@ elif st.session_state['active_section'] == 'admin_login':
         st.subheader("📋 Generated High-Risk Children Queue")
         st.markdown("Workers physically visit children on this list first to minimize dropout rates, focusing exclusively on **Korail Slum**.")
 
-        # Sample data with all children situated in Korail Slum
         risk_data = {
             "Child_Name": ["Rahim Karim", "Mim Akter", "Puja Rani", "Arman Khan", "Rifat Hossain", "Sadia Islam"],
             "Slum_Zone": ["Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum", "Korail Slum"],
@@ -432,7 +447,6 @@ elif st.session_state['active_section'] == 'admin_login':
 
         st.markdown("---")
 
-        # Slide-Aligned Vial Opening Calculator Formula
         st.subheader("💉 Vial Opening Optimizer & eVLMIS Integration")
         st.markdown("Calculates total projected doses and required vials using your exact slide formulas.")
 
@@ -456,10 +470,7 @@ elif st.session_state['active_section'] == 'admin_login':
         else:
             doses_per_vial = 10
 
-        # Applying Slide Formula: Total Doses = (Confirmed Visits + High-Risk Queue) * (1 + Wastage Factor)
         total_projected_doses = (confirmed_visits + high_risk_queue_input) * (1 + wastage_factor)
-        
-        # Applying Slide Formula: Vials to Open = Ceiling(Total Projected Doses / Doses per Vial)
         vials_to_open = math.ceil(total_projected_doses / doses_per_vial)
 
         res_c1, res_c2 = st.columns(2)
@@ -482,7 +493,6 @@ elif st.session_state['active_section'] == 'admin_login':
                 st.markdown("##### 👶 Children Immunization Status:")
                 children_list = prof.get('children_names', [])
                 for c_idx, child_name in enumerate(children_list, 1):
-                    # Mock specific progress for Rahim Karim, default values for others
                     if "rahim karim" in child_name.lower() or "rahim" in child_name.lower():
                         doses_taken_list = ["BCG (At Birth)", "Pentavalent 1 (6 Wks)", "PCV 1 (6 Wks)"]
                         doses_left_list = ["Pentavalent 2 (10 Wks)", "Pentavalent 3 (14 Wks)", "PCV 2 (10 Wks)", "PCV 3 (14 Wks)", "OPV & IPV Doses", "MR Dose 1 (9 Months)", "MR Dose 2 (15 Months)"]
@@ -493,12 +503,12 @@ elif st.session_state['active_section'] == 'admin_login':
                     st.markdown(f"**{c_idx}. {child_name}**")
                     col_dt, col_dl = st.columns(2)
                     with col_dt:
-                        st.markdown(f"✅ **Doses Taken ({len(d_taken := doses_taken_list)}):**")
-                        for d in d_taken:
+                        st.markdown(f"✅ **Doses Taken ({len(doses_taken_list)}):**")
+                        for d in doses_taken_list:
                             st.markdown(f"- {d}")
                     with col_dl:
-                        st.markdown(f"⏳ **Doses Left to Take ({len(d_left := doses_left_list)}):**")
-                        for d in d_left:
+                        st.markdown(f"⏳ **Doses Left to Take ({len(doses_left_list)}):**")
+                        for d in doses_left_list:
                             st.markdown(f"- {d}")
                     st.markdown("---")
                 
