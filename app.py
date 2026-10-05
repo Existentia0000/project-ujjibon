@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
 import os
-import socket
 import math
 from PIL import Image
 from datetime import datetime
-from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
 
 # Set page configuration to fit standard screens
@@ -15,9 +13,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# Auto-refresh the app every 5 seconds to check synchronization state
-st_autorefresh(interval=5000, key="net_sync_refresh")
 
 # Custom CSS for Clean White Theme & White Gumroad-Styled Buttons with Black Borders/Shadows
 st.markdown("""
@@ -84,17 +79,6 @@ st.markdown("""
 OFFLINE_PHOTO_DIR = "offline_captured_photos"
 os.makedirs(OFFLINE_PHOTO_DIR, exist_ok=True)
 
-# Function to check server-side connection
-def check_internet_connection(host="8.8.8.8", port=53, timeout=2):
-    try:
-        socket.setdefaulttimeout(timeout)
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
-        return True
-    except socket.error:
-        return False
-
-is_online = check_internet_connection()
-
 # Initialize session state stores
 if "local_field_queue" not in st.session_state:
     st.session_state["local_field_queue"] = []
@@ -129,20 +113,11 @@ if "admin_logged_in" not in st.session_state:
 if "current_user_profile" not in st.session_state:
     st.session_state["current_user_profile"] = {}
 
-# BACKGROUND SYNC TRIGGER
-if is_online and len(st.session_state["local_field_queue"]) > 0:
-    queued_count = len(st.session_state["local_field_queue"])
-    st.session_state["local_field_queue"].clear()
-    st.session_state["sync_status_message"] = f"🌐 Wi-Fi detected! Synced online successfully ({queued_count} pending record(s) uploaded)."
-elif not is_online:
-    st.session_state["sync_status_message"] = ""
-
 # App Header
 st.markdown("<h1 style='text-align: center; color: #000000;'>Project Ujjibon</h1>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Decentralized Offline-First Immunization Tracking System</div>", unsafe_allow_html=True)
 
 # --- BROWSER-SIDE LIVE NETWORK STATUS LISTENER (HTML/JS) ---
-# This widget detects browser online/offline status instantly without losing server connection page view
 network_status_html = """
 <div id="net-banner" style="padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;">
     Checking network status...
@@ -167,7 +142,7 @@ updateStatus();
 """
 components.html(network_status_html, height=45)
 
-# Display active auto-sync notification if it just triggered
+# Display active sync notification if present
 if st.session_state["sync_status_message"]:
     st.markdown(f"<div style='background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; text-align: center; font-weight: 700; margin-bottom: 15px;'>{st.session_state['sync_status_message']}</div>", unsafe_allow_html=True)
 
@@ -213,7 +188,7 @@ st.markdown("---")
 # --- SECTION: CHILD REGISTRATION ---
 if st.session_state['active_section'] == 'register':
     st.subheader("👶 Offline/Online Child & Caregiver Registration")
-    st.markdown("Complete details below. Each added child gets their own individual profile and vaccine checklist.")
+    st.markdown("Complete details below. Each added child gets their own individual profile and vaccine checklist locally stored.")
     
     st.markdown("---")
     st.subheader("📸 Caregiver Biometric Identifier Photo")
@@ -285,12 +260,9 @@ if st.session_state['active_section'] == 'register':
             }
             
             st.session_state["registered_profiles"].append(record_data)
+            st.session_state["local_field_queue"].append(record_data)
             
-            if is_online:
-                st.success(f"🌐 Profile created and synced online immediately! File: `{filename}`")
-            else:
-                st.session_state["local_field_queue"].append(record_data)
-                st.warning(f"📴 Profile created locally! No Wi-Fi detected. Queued for sync. File: `{filename}`")
+            st.warning(f"📴 Profile successfully saved locally and queued for offline sync! File: `{filename}` (Total queued: {len(st.session_state['local_field_queue'])})")
         else:
             st.warning("⚠️ Please fill out all required fields (Name, Phone, Address, at least one Child name, Security Answer, and Photo).")
 
@@ -337,10 +309,7 @@ elif st.session_state['active_section'] == 'child_login':
             st.markdown("---")
             
         if st.button("💾 Save All Vaccine Status Updates"):
-            if is_online:
-                st.success("🌐 Vaccine records updated and synced online successfully!")
-            else:
-                st.warning("📴 Saved offline! Vaccine checklist updates queued locally.")
+            st.warning("📴 Saved locally in offline-first mode! Updates queued for future network sync.")
                 
         st.write("")
         if st.button("🚪 Log Out / Back to Login"):
@@ -350,7 +319,7 @@ elif st.session_state['active_section'] == 'child_login':
 
     else:
         st.subheader("🔑 Child / Guardian Portal Login")
-        st.markdown("Provide your verification photo (mandatory) to open your registered profile.")
+        st.markdown("Provide your verification photo to open your registered profile locally.")
         
         st.markdown("---")
         st.subheader("📸 Biometric / Face Verification Photo (Mandatory)")
@@ -409,7 +378,7 @@ elif st.session_state['active_section'] == 'child_login':
 elif st.session_state['active_section'] == 'admin_login':
     if st.session_state.get('admin_logged_in', False):
         st.subheader("🛡️ Health Worker / Admin Dashboard")
-        st.markdown("Welcome back, **Raik**! Here is the overview of decentralized immunization nodes, local queues, and AI risk analysis.")
+        st.markdown("Welcome back! Here is the overview of decentralized immunization nodes, local queues, and AI risk analysis.")
         
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
@@ -417,7 +386,7 @@ elif st.session_state['active_section'] == 'admin_login':
         with m_col2:
             st.metric("Pending Offline Queue", len(st.session_state["local_field_queue"]))
         with m_col3:
-            st.metric("System Status", "Online" if is_online else "Offline-First")
+            st.metric("System Mode", "Offline-First Local")
             
         st.markdown("---")
         
@@ -479,7 +448,7 @@ elif st.session_state['active_section'] == 'admin_login':
         with res_c2:
             st.metric("Vials to Open", f"{vials_to_open} Vial(s)")
 
-        st.info("💡 **cVLMIS / eVLMS Integration Note:** This calculated usage data feeds directly into our national eVLMS central database, providing accurate tracking of total vaccines consumed in real time.")
+        st.info("💡 **cVLMIS / eVLMS Integration Note:** This calculated usage data feeds directly into our national eVLMS central database, providing accurate tracking of total vaccines consumed.")
 
         st.markdown("---")
         st.subheader("📁 All Registered Caregivers & Children Database")
