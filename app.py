@@ -114,40 +114,32 @@ if "admin_logged_in" not in st.session_state:
 if "current_user_profile" not in st.session_state:
     st.session_state["current_user_profile"] = {}
 
+if "presentation_offline_mode" not in st.session_state:
+    st.session_state["presentation_offline_mode"] = False
+
 # App Header
 st.markdown("<h1 style='text-align: center; color: #000000;'>Project Ujjibon</h1>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Decentralized Offline-First Immunization Tracking System</div>", unsafe_allow_html=True)
 
-# --- BROWSER-SIDE LIVE NETWORK STATUS & AUTO-SYNC POPUP LISTENER ---
-network_status_html = """
-<div id="net-banner" style="padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;">
-    Checking network status...
-</div>
-<script>
-const banner = document.getElementById('net-banner');
-function updateStatus() {
-    if (navigator.onLine) {
-        banner.style.backgroundColor = "#e2f0cb";
-        banner.style.color = "#2d5016";
-        banner.innerHTML = "🟢 Network Status: Connected (Online Mode)";
-        
-        const pendingName = sessionStorage.getItem("ujjibon_pending_offline_name");
-        if (pendingName) {
-            alert("🌐 Wi-Fi Reconnected! Successfully synced record: " + pendingName + " has been registered and updated in the admin portal.");
-            sessionStorage.removeItem("ujjibon_pending_offline_name");
-        }
-    } else {
-        banner.style.backgroundColor = "#f8d7da";
-        banner.style.color = "#721c24";
-        banner.innerHTML = "🔴 Status Update: Offline (Offline-First Field Mode Active)";
-    }
-}
-window.addEventListener('online', updateStatus);
-window.addEventListener('offline', updateStatus);
-updateStatus();
-</script>
-"""
-components.html(network_status_html, height=45)
+# --- PRESENTATION DEMO MODE TOGGLE BAR ---
+col_mode1, col_mode2, col_mode3 = st.columns([1, 2, 1])
+with col_mode2:
+    mode_toggle = st.radio(
+        "🎛️ Presentation Demo Mode (Simulate Field Network):",
+        ["🌐 Online Mode", "📴 Simulate Offline Field Mode"],
+        horizontal=True,
+        index=1 if st.session_state["presentation_offline_mode"] else 0
+    )
+    if "Offline" in mode_toggle:
+        st.session_state["presentation_offline_mode"] = True
+    else:
+        st.session_state["presentation_offline_mode"] = False
+
+# Display Live Status Banner based on Demo Mode toggle
+if not st.session_state["presentation_offline_mode"]:
+    st.markdown("<div style='background-color: #e2f0cb; color: #2d5016; padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;'>🟢 Network Status: Connected (Online Mode)</div>", unsafe_allow_html=True)
+else:
+    st.markdown("<div style='background-color: #f8d7da; color: #721c24; padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;'>🔴 Status Update: Offline (Offline-First Field Mode Active)</div>", unsafe_allow_html=True)
 
 # Display active sync notification if present
 if st.session_state["sync_status_message"]:
@@ -267,15 +259,12 @@ if st.session_state['active_section'] == 'register':
             }
             
             st.session_state["registered_profiles"].append(record_data)
-            st.session_state["local_field_queue"].append(record_data)
             
-            components.html(f"""
-                <script>
-                sessionStorage.setItem("ujjibon_pending_offline_name", "{primary_name.strip()}");
-                </script>
-            """, height=0)
-            
-            st.warning(f"📴 **Info saved offline.** To be auto-synced when online. (Registered Caregiver: **{primary_name.strip()}** | File: `{filename}`)")
+            if st.session_state["presentation_offline_mode"]:
+                st.session_state["local_field_queue"].append(record_data)
+                st.warning(f"📴 **Info saved offline.** To be auto-synced when online. (Registered Caregiver: **{primary_name.strip()}** | File: `{filename}`)")
+            else:
+                st.success(f"🌐 Profile successfully registered and synced online! Caregiver: **{primary_name.strip()}**")
         else:
             st.warning("⚠️ Please fill out all required fields, including answers to all 3 security questions and a biometric photo.")
 
@@ -322,7 +311,10 @@ elif st.session_state['active_section'] == 'child_login':
             st.markdown("---")
             
         if st.button("💾 Save All Vaccine Status Updates"):
-            st.warning("📴 Saved locally in offline-first mode! Updates queued for future network sync.")
+            if st.session_state["presentation_offline_mode"]:
+                st.warning("📴 Saved locally in offline-first mode! Updates queued for future network sync.")
+            else:
+                st.success("🌐 Vaccine records updated and synced online successfully!")
                 
         st.write("")
         if st.button("🚪 Log Out / Back to Login"):
