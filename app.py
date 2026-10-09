@@ -4,6 +4,7 @@ import os
 import math
 from PIL import Image
 from datetime import datetime
+import streamlit.components.v1 as components
 
 # Set page configuration to fit standard screens
 st.set_page_config(
@@ -117,7 +118,7 @@ if "current_user_profile" not in st.session_state:
 st.markdown("<h1 style='text-align: center; color: #000000;'>Project Ujjibon</h1>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Decentralized Offline-First Immunization Tracking System</div>", unsafe_allow_html=True)
 
-# --- BROWSER-SIDE LIVE NETWORK STATUS LISTENER (HTML/JS) ---
+# --- BROWSER-SIDE LIVE NETWORK STATUS & AUTO-SYNC POPUP LISTENER ---
 network_status_html = """
 <div id="net-banner" style="padding: 8px; border-radius: 4px; text-align: center; font-weight: 600; margin-bottom: 15px;">
     Checking network status...
@@ -129,6 +130,13 @@ function updateStatus() {
         banner.style.backgroundColor = "#e2f0cb";
         banner.style.color = "#2d5016";
         banner.innerHTML = "🟢 Network Status: Connected (Online Mode)";
+        
+        // Check if we had pending offline registrations stored in browser session storage
+        const pendingName = sessionStorage.getItem("ujjibon_pending_offline_name");
+        if (pendingName) {
+            alert("🌐 Wi-Fi Reconnected! Successfully synced record: " + pendingName + " has been registered and updated in the admin portal.");
+            sessionStorage.removeItem("ujjibon_pending_offline_name");
+        }
     } else {
         banner.style.backgroundColor = "#f8d7da";
         banner.style.color = "#721c24";
@@ -140,7 +148,7 @@ window.addEventListener('offline', updateStatus);
 updateStatus();
 </script>
 """
-components_html = st.components.v1.html(network_status_html, height=45)
+components.html(network_status_html, height=45)
 
 # Display active sync notification if present
 if st.session_state["sync_status_message"]:
@@ -262,7 +270,14 @@ if st.session_state['active_section'] == 'register':
             st.session_state["registered_profiles"].append(record_data)
             st.session_state["local_field_queue"].append(record_data)
             
-            st.warning(f"📴 Profile successfully saved locally and queued for offline sync! File: `{filename}` (Total queued: {len(st.session_state['local_field_queue'])})")
+            # JavaScript snippet to trigger browser session storage sync flag for popup notification when back online
+            components.html(f"""
+                <script>
+                sessionStorage.setItem("ujjibon_pending_offline_name", "{primary_name.strip()}");
+                </script>
+            """, height=0)
+            
+            st.warning(f"📴 **Info saved offline.** To be auto-synced when online. (Registered Caregiver: **{primary_name.strip()}** | File: `{filename}`)")
         else:
             st.warning("⚠️ Please fill out all required fields, including answers to all 3 security questions and a biometric photo.")
 
@@ -463,42 +478,4 @@ elif st.session_state['active_section'] == 'admin_login':
                 children_list = prof.get('children_names', [])
                 for c_idx, child_name in enumerate(children_list, 1):
                     if "rahim karim" in child_name.lower() or "rahim" in child_name.lower():
-                        doses_taken_list = ["BCG (At Birth)", "Pentavalent 1 (6 Wks)", "PCV 1 (6 Wks)"]
-                        doses_left_list = ["Pentavalent 2 (10 Wks)", "Pentavalent 3 (14 Wks)", "PCV 2 (10 Wks)", "PCV 3 (14 Wks)", "OPV & IPV Doses", "MR Dose 1 (9 Months)", "MR Dose 2 (15 Months)"]
-                    else:
-                        doses_taken_list = ["BCG (At Birth)"]
-                        doses_left_list = ["Pentavalent 1, 2, 3", "PCV 1, 2, 3", "OPV & IPV Doses", "MR Dose 1 & 2"]
-
-                    st.markdown(f"**{c_idx}. {child_name}**")
-                    col_dt, col_dl = st.columns(2)
-                    with col_dt:
-                        st.markdown(f"✅ **Doses Taken ({len(doses_taken_list)}):**")
-                        for d in doses_taken_list:
-                            st.markdown(f"- {d}")
-                    with col_dl:
-                        st.markdown(f"⏳ **Doses Left to Take ({len(doses_left_list)}):**")
-                        for d in doses_left_list:
-                            st.markdown(f"- {d}")
-                    st.markdown("---")
-                
-        st.write("")
-        if st.button("🚪 Admin Log Out"):
-            st.session_state['admin_logged_in'] = False
-            st.rerun()
-            
-    else:
-        st.subheader("🛡️ Health Worker / Admin Portal")
-        st.markdown("Please enter your authorized credentials to access the admin dashboard.")
-        
-        with st.form("admin_login_form"):
-            admin_username = st.text_input("Admin Username", placeholder="Enter username")
-            admin_passcode = st.text_input("Secure Passcode", type="password", placeholder="Enter passcode")
-            admin_submitted = st.form_submit_button("🔑 Login to Dashboard")
-            
-        if admin_submitted:
-            if admin_username.strip() == "raik" and admin_passcode.strip() == "123456":
-                st.session_state['admin_logged_in'] = True
-                st.success("🎉 Admin authentication successful!")
-                st.rerun()
-            else:
-                st.error("❌ Invalid username or passcode. Please try again (Hint: username is 'raik', passcode is '123456').")
+                        doses_taken_list = ["BCG (At Birth)", "Pentavalent
