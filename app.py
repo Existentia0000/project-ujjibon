@@ -4,7 +4,6 @@ import os
 import math
 from PIL import Image
 from datetime import datetime
-import streamlit.components.v1 as components
 
 # Set page configuration to fit standard screens
 st.set_page_config(
@@ -90,8 +89,9 @@ if "registered_profiles" not in st.session_state:
             "primary_phone": "+8801711223344",
             "address": "Korail Slum, Sector 7, House 12",
             "children_names": ["Rahim Karim", "Fatima"],
-            "security_question": "Favourite fruit",
-            "security_answer": "Mango",
+            "sec_q1": "Mango",
+            "sec_q2": "12 June",
+            "sec_q3": "Grandfather",
             "secondary_name": "Rahim Uddin",
             "secondary_phone": "+8801811223344",
             "filepath": ""
@@ -140,7 +140,7 @@ window.addEventListener('offline', updateStatus);
 updateStatus();
 </script>
 """
-components.html(network_status_html, height=45)
+components_html = st.components.v1.html(network_status_html, height=45)
 
 # Display active sync notification if present
 if st.session_state["sync_status_message"]:
@@ -217,12 +217,11 @@ if st.session_state['active_section'] == 'register':
             child_inputs.append(c_val)
         
         st.markdown("---")
-        st.subheader("🔐 Secure Recovery / Verification Question")
-        security_question = st.selectbox(
-            "Select Security Question:",
-            ["Favourite fruit", "Wedding date", "Name-giver of child"]
-        )
-        security_answer = st.text_input("Answer to Security Question:", placeholder="Enter your secret answer")
+        st.subheader("🔐 Secure Recovery / Verification Questions")
+        st.markdown("Please provide answers to all 3 mandatory security questions for fallback recovery:")
+        sec_q1 = st.text_input("1. Favourite fruit:", placeholder="e.g., Mango")
+        sec_q2 = st.text_input("2. Wedding date:", placeholder="e.g., 12 June")
+        sec_q3 = st.text_input("3. Name-giver of child:", placeholder="e.g., Grandfather")
         
         st.markdown("---")
         st.subheader("2️⃣ Secondary Caregiver Details (Backup)")
@@ -238,7 +237,7 @@ if st.session_state['active_section'] == 'register':
 
     if submitted:
         valid_children = [c.strip() for c in child_inputs if c and len(c.strip()) > 0]
-        if primary_image is not None and len(primary_name) > 1 and len(primary_phone) > 5 and len(address) > 0 and len(valid_children) > 0 and len(security_answer) > 0:
+        if primary_image is not None and len(primary_name) > 1 and len(primary_phone) > 5 and len(address) > 0 and len(valid_children) > 0 and len(sec_q1.strip()) > 0 and len(sec_q2.strip()) > 0 and len(sec_q3.strip()) > 0:
             ms_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             filename = f"PRIMARY_{ms_timestamp}.jpg"
             filepath = os.path.join(OFFLINE_PHOTO_DIR, filename)
@@ -251,8 +250,9 @@ if st.session_state['active_section'] == 'register':
                 "primary_phone": primary_phone.strip(),
                 "address": address.strip(),
                 "children_names": valid_children,
-                "security_question": security_question,
-                "security_answer": security_answer.strip(),
+                "sec_q1": sec_q1.strip(),
+                "sec_q2": sec_q2.strip(),
+                "sec_q3": sec_q3.strip(),
                 "secondary_name": secondary_name.strip(),
                 "secondary_phone": secondary_phone.strip(),
                 "filepath": filepath,
@@ -264,7 +264,7 @@ if st.session_state['active_section'] == 'register':
             
             st.warning(f"📴 Profile successfully saved locally and queued for offline sync! File: `{filename}` (Total queued: {len(st.session_state['local_field_queue'])})")
         else:
-            st.warning("⚠️ Please fill out all required fields (Name, Phone, Address, at least one Child name, Security Answer, and Photo).")
+            st.warning("⚠️ Please fill out all required fields, including answers to all 3 security questions and a biometric photo.")
 
 # --- SECTION: CHILD LOGIN ---
 elif st.session_state['active_section'] == 'child_login':
@@ -319,7 +319,7 @@ elif st.session_state['active_section'] == 'child_login':
 
     else:
         st.subheader("🔑 Child / Guardian Portal Login")
-        st.markdown("Provide your verification photo to open your registered profile locally.")
+        st.markdown("Provide your verification photo and optional fallback lookup details.")
         
         st.markdown("---")
         st.subheader("📸 Biometric / Face Verification Photo (Mandatory)")
@@ -334,7 +334,7 @@ elif st.session_state['active_section'] == 'child_login':
         st.markdown("---")
 
         with st.form("login_form"):
-            st.subheader("1️⃣ Optional Lookup Details")
+            st.subheader("1️⃣ Lookup & Fallback Verification Details")
             login_primary_name = st.text_input("Primary Caregiver's Full Name (Optional):", placeholder="e.g., Ayesha Begum")
             login_primary_phone = st.text_input("Mobile Number (Optional):", "+880")
             
@@ -457,7 +457,7 @@ elif st.session_state['active_section'] == 'admin_login':
             with st.expander(f"Profile {idx}: {prof.get('primary_name')} ({prof.get('primary_phone')})"):
                 st.write(f"**Residential Address:** {prof.get('address')}")
                 st.write(f"**Backup Contact:** {prof.get('secondary_name')} ({prof.get('secondary_phone')})")
-                st.write(f"**Security Q/A:** {prof.get('security_question')} -> {prof.get('security_answer')}")
+                st.write(f"**Security Answers:** 1. {prof.get('sec_q1')} | 2. {prof.get('sec_q2')} | 3. {prof.get('sec_q3')}")
                 
                 st.markdown("##### 👶 Children Immunization Status:")
                 children_list = prof.get('children_names', [])
