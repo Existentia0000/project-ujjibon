@@ -286,8 +286,4 @@ elif st.session_state['active_section'] == 'child_login':
         st.subheader("👤 Caregiver & Child Immunization Profile")
         
         col_img, col_info = st.columns([1, 2])
-        with col_img:
-            if profile.get('filepath') and os.path.exists(profile['filepath']):
-                st.image(profile['filepath'], width=180, caption="Caregiver Photo")
-            else:
-                st.info("Verified Caregiver Profile
+        with col_img
